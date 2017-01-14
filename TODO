@@ -1,0 +1,6 @@
+-Lint/flake w/e python calls it
+-Validate config options
+-Break everything out into methods
+-Test various methods
+-Ensure balance is presented to logger as X.XX
+-Make loglevel and logfile configurable

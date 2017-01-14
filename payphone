@@ -1,0 +1,89 @@
+#!/usr/bin/python3
+
+import sys, re
+import configparser
+import logging
+from datetime import datetime
+from grab import Grab
+from weblib.error import DataNotFound
+
+logging.basicConfig(filename='/var/log/payphone.log', level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
+Config = configparser.ConfigParser()
+Config.read('config')
+
+g = Grab()
+g.go('https://www.paygonline.com/websc/loginPage.html')
+g.doc.set_input('phoneNumber', Config['account']['phonenumber'])
+g.doc.set_input('password', Config['account']['pin'])
+g.doc.submit()
+
+#Make sure we're logged in
+try:
+  g.doc('//div[@class="total-current-text"]').assert_exists()
+except DataNotFound:
+  logging.critical("Invalid password")
+  sys.exit(1)
+
+#See if our money is about to expire
+expiry = g.doc('//p[@class="exp"]').text()
+match = re.search('Expires on (.*)', expiry)
+if match:
+  expiry_dt = datetime.strptime( match.group(1), '%b %d, %Y' )
+else:
+  logging.critical( "Can't find expiry date. Bailing" )
+  sys.exit(1)
+
+now_dt = datetime.now()
+
+#See what our balance is
+match = re.search('\$([\d.]+)', g.doc('//p[@class="plan-text sup"]').text() )
+if match:
+  balance = match.group(1)
+else:
+  logging.critical( "Can't find balance" )
+  sys.exit(1)
+
+needs_refill = False
+diff = expiry_dt - now_dt
+if diff.days <= int( Config['account']['mindays'] ) or float(balance) < float( Config['account']['minbalance'] ):
+  logging.info("Refill is currently required. Our balance will expire in %s days, and we have $%s free" % ( diff.days, balance ) )
+else:
+  logging.debug( "I have %s days and $%s left, so I'm chillaxing" % ( diff.days, balance ) )
+  sys.exit(0)
+
+#Request refill
+g.go('/websc/main.html?page=refill')
+g.doc.set_input('amount', Config['account']['refill'] )
+g.doc.submit()
+
+#Verify amount
+match = re.search('\$([\d.]+)', g.doc('//p[@class="total-price"]').text() )
+if not match:
+  logging.critical( "Couln't get first confirmation page" )
+  sys.exit(1)
+if float( match.group(1) ) != float( Config['account']['refill'] ):
+  logging.critical( "Whoa there, the confirmation price isn't what I expected." )
+  sys.exit(1)
+g.doc.submit()
+
+#Verify taxes and card
+match = re.search('\$([\d.]+)', g.doc('//p[@class="total-price"]').text() )
+if not match:
+  logging.critical( "Couldn't get the second confirmation page" )
+  sys.exit(1)
+if float( match.group(1) ) > ( 1.0 + float( Config['account']['maxtax'] ) ) * float( Config['account']['refill'] ):
+  logging.critical( "We got taxed more than we expected. Aborting. Expecting no more than %s, got %s" % ( ( float( Config['account']['maxtax'] ) + 1.0 )* float( Config['account']['refill'] ), match.group(1) ) )
+  sys.exit(1)
+match = re.search('Card ending in (\d+)', g.doc('//div[@class="one"]/p[@class="total-title"]').text() )
+if not match:
+  logging.critical( "Couldn't find card data in %s " % g.doc('//div[@class="one"]/p[@class="total-title"]').text() )
+  sys.exit(1)
+if match.group(1) != Config['account']['card']:
+  logging.critical( "Unexpected card ending in %s. Aborting" % match.group(1) )
+  sys.exit(1)
+g.doc.choose_form(xpath='//form[@name="checkOutFinalSubmit"]')
+g.doc.submit()
+logging.info("Refill successful")
+
+#Here's a useful feature if you get stuck . . .
+#g.doc.save('/tmp/x.html')

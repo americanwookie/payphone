@@ -1,0 +1,8 @@
+[account]
+phonenumber: 7135551212
+pin: 0423
+mindays: 0
+minbalance: 3.00
+refill: 1.00
+card: 2222
+maxtax: 0.10
