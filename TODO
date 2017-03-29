@@ -3,4 +3,6 @@
 -Break everything out into methods
 -Test various methods
 -Ensure balance is presented to logger as X.XX
+-Make this output more readable:
+2017-03-04 22:59:07,174 INFO:Refill is currently required. Our balance will expire in -20 days, and we have $0.00 free
 -Make loglevel and logfile configurable
