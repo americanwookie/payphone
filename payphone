@@ -26,9 +26,10 @@ except DataNotFound:
 
 #See if our money is about to expire
 expiry = g.doc('//p[@class="exp"]').text()
-match = re.search('Expires on (.*)', expiry)
+match = re.search('Expire(s|d) on (.*)', expiry)
 if match:
-  expiry_dt = datetime.strptime( match.group(1), '%b %d, %Y' )
+  expired = True if match.group(1) == 'd' else False
+  expiry_dt = datetime.strptime( match.group(2), '%b %d, %Y' )
 else:
   logging.critical( "Can't find expiry date. Bailing" )
   sys.exit(1)
