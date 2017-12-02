@@ -24,6 +24,14 @@ except DataNotFound:
   logging.critical("Invalid password")
   sys.exit(1)
 
+#Make sure they haven't restructured the first page
+try:
+  g.doc('//p[@class="exp"]').assert_exists()
+except DataNotFound:
+  logging.error("Can't find expiry paragraph")
+  print("Can't find expiry paragraph")
+  sys.exit(1)
+
 #See if our money is about to expire
 expiry = g.doc('//p[@class="exp"]').text()
 match = re.search('Expire(s|d) on (.*)', expiry)
