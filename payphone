@@ -24,25 +24,27 @@ except DataNotFound:
   logging.critical("Invalid password")
   sys.exit(1)
 
+now_dt = datetime.now()
+
 #Make sure they haven't restructured the first page
 try:
-  g.doc('//p[@class="exp"]').assert_exists()
+  g.doc('//div[@class="one half mobile align-center balance"]').assert_exists()
 except DataNotFound:
   logging.error("Can't find expiry paragraph")
   print("Can't find expiry paragraph")
   sys.exit(1)
 
 #See if our money is about to expire
-expiry = g.doc('//p[@class="exp"]').text()
-match = re.search('Expire(s|d) on (.*)', expiry)
+expiry = g.doc('//div[@class="one half mobile align-center balance"]').text()
+match = re.search('Balance Expire(s|d) ([A-Z][a-z]{2} \d{1,2})', expiry)
 if match:
   expired = True if match.group(1) == 'd' else False
-  expiry_dt = datetime.strptime( match.group(2), '%b %d, %Y' )
+  expiry_dt = datetime.strptime( match.group(2)+ ", " + str(now_dt.year), '%b %d, %Y' )
+  if expiry_dt < now_dt:
+    expiry_dt = datetime.strptime( match.group(2)+ ", " + str(now_dt.year+1), '%b %d, %Y' )
 else:
   logging.critical( "Can't find expiry date. Bailing" )
   sys.exit(1)
-
-now_dt = datetime.now()
 
 #See what our balance is
 match = re.search('\$([\d.]+)', g.doc('//p[@class="plan-text sup"]').text() )
