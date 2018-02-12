@@ -1,5 +1,6 @@
 -Lint/flake w/e python calls it
 -Validate config options
+-Document configuration file
 -Break everything out into methods
 -Test various methods
 -Ensure balance is presented to logger as X.XX
